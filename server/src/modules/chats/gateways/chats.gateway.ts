@@ -1,40 +1,59 @@
 import {
-  MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit,
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
-  WebSocketGateway, WsException,
+  WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { ChatsService } from '../services/chats.service';
-import { DatabaseService } from '../../../database/services/database.service';
-import { Logger, UseFilters } from '@nestjs/common';
-import { Socket } from 'socket.io';
+import { Logger } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
+import { ErrCallback } from '../../../common/types/ErrCallback.type';
+import { CallbackUserArg } from '../../../common/types/CallbackUserArg.type';
 
-@WebSocketGateway(3001) // I have problems with 3000 for some reason
-export class ChatsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private chatsService: ChatsService, private dbService: DatabaseService) {}
+@WebSocketGateway(3001, { namespace: 'chats' }) // I have problems with 3000 for some reason
+export class ChatsGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  constructor(private chatsService: ChatsService) {}
+
+  @WebSocketServer()
+  socket: Server;
 
   afterInit() {
     Logger.log('ChatsGateway Initialized!', 'ChatsGateway');
   }
 
-
   handleConnection(client: Socket) {
-    if (!client.handshake.headers.username) {
-      Logger.log(`${client.id} connected without username, Disconnecting!`, 'ChatsGateway');
-      client.disconnect();
-    } else {
-      Logger.log(`${client.handshake.headers.username}: ${client.id} connected!`, `ChatsGateway`);
-
-      this.dbService.addUser({ username: client.handshake.headers.username, socketId: client.id });
-    }
+    this.chatsService.handleConnection(client);
   }
 
   handleDisconnect(client: Socket) {
-    Logger.log(`${client.handshake.headers.username}: ${client.id} disconnected!`, `ChatsGateway`);
-    this.dbService.removeUser(client.handshake.headers.username);
+    this.chatsService.handleDisconnect(client);
   }
 
-  @SubscribeMessage('test')
-  onTest(@MessageBody() body: any) {
-    console.log(this.dbService.getNumberOfUsers())
+  @SubscribeMessage('message')
+  handleMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    body: {
+      message: string;
+      recipientUsername: string;
+      errCallback: ErrCallback;
+    },
+  ) {
+    this.chatsService.handleMessage(client, this.socket, body);
+  }
+
+  @SubscribeMessage('getOtherUser')
+  handleGetOtherUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    body: { errCallback: ErrCallback; callback: CallbackUserArg },
+  ) {
+    this.chatsService.handleGetOtherUser(client, this.socket, body);
   }
 }
