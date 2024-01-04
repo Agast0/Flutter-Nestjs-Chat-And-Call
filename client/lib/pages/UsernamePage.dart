@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
+
 class UsernamePage extends StatefulWidget {
   const UsernamePage({Key? key}) : super(key: key);
 
@@ -40,6 +41,7 @@ class UsernamePageState extends State<UsernamePage> {
               height: 48, // Adjust the height as needed
               child: ElevatedButton(
                 onPressed: () {
+                  logger.d('username $_username');
                   Navigator.pushNamed(
                     context,
                     '/chatPage',
