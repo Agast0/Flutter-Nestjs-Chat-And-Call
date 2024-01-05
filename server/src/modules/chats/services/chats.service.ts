@@ -10,7 +10,7 @@ export class ChatsService {
   constructor(private dbService: DatabaseService) {}
 
   handleConnection(client: Socket) {
-    if (!client.handshake.headers.username) {
+    if (!client.handshake.query.username) {
       Logger.log(
         `${client.id} connected without username, Disconnecting!`,
         'ChatsGateway',
@@ -18,11 +18,11 @@ export class ChatsService {
       client.disconnect();
     } else {
       Logger.log(
-        `${client.handshake.headers.username}: ${client.id} connected!`,
+        `${client.handshake.query.username}: ${client.id} connected!`,
         `ChatsGateway`,
       );
       const error = this.dbService.addUser({
-        username: client.handshake.headers.username,
+        username: client.handshake.query.username,
         socketId: client.id,
       });
       if (error) {
@@ -34,10 +34,10 @@ export class ChatsService {
 
   handleDisconnect(client: Socket) {
     Logger.log(
-      `${client.handshake.headers.username}: ${client.id} disconnected!`,
+      `${client.handshake.query.username}: ${client.id} disconnected!`,
       `ChatsGateway`,
     );
-    const error = this.dbService.removeUser(client.handshake.headers.username);
+    const error = this.dbService.removeUser(client.handshake.query.username);
     if (error) {
       Logger.log(error.message, 'ERROR | ChatsGateway');
     }
@@ -52,7 +52,7 @@ export class ChatsService {
       errCallback: ErrCallback;
     },
   ) {
-    const clientUsername = client.handshake.headers.username;
+    const clientUsername = client.handshake.query.username;
 
     if (!body.recipientUsername) {
       Logger.log(
@@ -96,7 +96,7 @@ export class ChatsService {
     body: { errCallback: ErrCallback; callback: CallbackUserArg },
   ) {
     const otherUser = this.dbService.getOtherUser(
-      client.handshake.headers.username,
+        client.handshake.query.username,
     );
     if (otherUser instanceof Error) {
       body.errCallback(new WsException(otherUser.message));
