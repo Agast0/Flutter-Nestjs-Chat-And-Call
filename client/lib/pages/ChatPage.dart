@@ -1,7 +1,7 @@
 import 'package:client/utils/SocketUtils.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart';
 
 class ChatPage extends StatefulWidget {
   final String username;
@@ -15,7 +15,7 @@ class ChatPage extends StatefulWidget {
 class ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final Logger logger = Logger();
-  late IO.Socket socket;
+  late Socket socket;
 
   @override
   void initState() {
