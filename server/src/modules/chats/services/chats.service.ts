@@ -2,45 +2,39 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { DatabaseService } from '../../../database/services/database.service';
 import { WsException } from '@nestjs/websockets';
-import { CallbackUserArg } from '../../../common/types/CallbackUserArg.type';
 import { ErrCallback } from '../../../common/types/ErrCallback.type';
+import { User } from '../../../common/types/User.type';
+import {
+  addUserToDatabase,
+  disconnectClient,
+  removeUserFromDatabase,
+  validateUsername,
+} from '../helpers/chats.connection.helper';
 
 @Injectable()
 export class ChatsService {
   constructor(private dbService: DatabaseService) {}
 
-  handleConnection(client: Socket) {
-    if (!client.handshake.query.username) {
-      Logger.log(
-        `${client.id} connected without username, Disconnecting!`,
-        'ChatsGateway',
-      );
-      client.disconnect();
-    } else {
-      Logger.log(
-        `${client.handshake.query.username}: ${client.id} connected!`,
-        `ChatsGateway`,
-      );
-      const error = this.dbService.addUser({
-        username: client.handshake.query.username,
-        socketId: client.id,
-      });
-      if (error) {
-        Logger.log(error.message, 'ERROR | ChatsGateway');
-        client.disconnect();
-      }
+  handleConnection(client: Socket, socket: Server) {
+    if (!validateUsername(client)) {
+      disconnectClient(client, 'ChatsGateway');
+      return;
     }
+
+    Logger.log(
+      `${client.handshake.query.username}: ${client.id} connected!`,
+      `ChatsGateway`,
+    );
+
+    addUserToDatabase(client, socket, this.dbService);
   }
 
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket, socket: Server) {
     Logger.log(
       `${client.handshake.query.username}: ${client.id} disconnected!`,
       `ChatsGateway`,
     );
-    const error = this.dbService.removeUser(client.handshake.query.username);
-    if (error) {
-      Logger.log(error.message, 'ERROR | ChatsGateway');
-    }
+    removeUserFromDatabase(client, socket, this.dbService);
   }
 
   handleMessage(
@@ -90,19 +84,17 @@ export class ChatsService {
     }
   }
 
-  handleGetOtherUser(
-    client: Socket,
-    socket: Server,
-    body: { errCallback: ErrCallback; callback: CallbackUserArg },
-  ) {
-    const otherUser = this.dbService.getOtherUser(
+  handleGetOtherUser(client: Socket) {
+    return new Promise<User>((resolve, reject) => {
+      const otherUser = this.dbService.getOtherUser(
         client.handshake.query.username,
-    );
-    if (otherUser instanceof Error) {
-      body.errCallback(new WsException(otherUser.message));
-      throw new WsException(otherUser.message);
-    } else {
-      body.callback(otherUser);
-    }
+      );
+      if (otherUser instanceof Error) {
+        reject(new WsException(otherUser.message));
+        throw new WsException(otherUser.message);
+      } else {
+        resolve(otherUser);
+      }
+    });
   }
 }

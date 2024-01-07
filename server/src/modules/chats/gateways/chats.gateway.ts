@@ -12,7 +12,6 @@ import { ChatsService } from '../services/chats.service';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ErrCallback } from '../../../common/types/ErrCallback.type';
-import { CallbackUserArg } from '../../../common/types/CallbackUserArg.type';
 
 @WebSocketGateway(3001, { namespace: 'chats' }) // I have problems with 3000 for some reason
 export class ChatsGateway
@@ -28,11 +27,11 @@ export class ChatsGateway
   }
 
   handleConnection(client: Socket) {
-    this.chatsService.handleConnection(client);
+    this.chatsService.handleConnection(client, this.socket);
   }
 
   handleDisconnect(client: Socket) {
-    this.chatsService.handleDisconnect(client);
+    this.chatsService.handleDisconnect(client, this.socket);
   }
 
   @SubscribeMessage('message')
@@ -49,11 +48,7 @@ export class ChatsGateway
   }
 
   @SubscribeMessage('getOtherUser')
-  handleGetOtherUser(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    body: { errCallback: ErrCallback; callback: CallbackUserArg },
-  ) {
-    this.chatsService.handleGetOtherUser(client, this.socket, body);
+  async handleGetOtherUser(@ConnectedSocket() client: Socket) {
+    return await this.chatsService.handleGetOtherUser(client);
   }
 }

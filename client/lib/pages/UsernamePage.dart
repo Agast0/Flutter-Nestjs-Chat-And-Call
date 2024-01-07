@@ -41,7 +41,6 @@ class UsernamePageState extends State<UsernamePage> {
               height: 48, // Adjust the height as needed
               child: ElevatedButton(
                 onPressed: () {
-                  logger.d('username $_username');
                   Navigator.pushNamed(
                     context,
                     '/chatPage',
